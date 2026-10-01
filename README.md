@@ -1,96 +1,199 @@
-<div align="center">
+"""
+Builds dark_mode.svg and light_mode.svg: ASCII portrait on the left,
+neofetch-style info + live GitHub stats on the right.
 
-<h1>Matthew Kofi Fiakpornu</h1>
+Usage:
+    GH_TOKEN=xxx python build_profile.py      # real stats
+    python build_profile.py --offline         # preview with fake stats
+"""
+import json
+import os
+import sys
+import urllib.request
+from datetime import date, datetime, timedelta
+from xml.sax.saxutils import escape
 
-<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&pause=1000&color=00FF94&center=true&vCenter=true&width=900&lines=Computer+Science+%40+Colgate+University;Backend+Engineering+%7C+Systems+%7C+Developer+Tools" />
+# ============ EDIT THIS SECTION ============
+USERNAME = "matthewdev05"
+BIRTHDAY = None  # e.g. date(2005, 1, 31) — then add ("kv", "Uptime", "{uptime}") below
 
-<br/>
+# ("header", title) draws a section line, ("kv", key, value) an info row, ("blank",) a gap.
+# {uptime}, {repos}, {contributed}, {stars}, {commits}, {followers} are filled in live.
+INFO = [
+    ("header", "matthew@fiakpornu"),
+    ("kv", "Host", "Colgate University"),
+    ("kv", "Kernel", "Computer Science, Physics Minor"),
+    ("kv", "Focus", "Backend, Systems, Developer Tools"),
+    ("kv", "IDE", "VS Code"),
+    ("blank",),
+    ("kv", "Languages.Programming", "Python, Java"),
+    ("kv", "Languages.Backend", "Flask, REST APIs, HTTP & JSON"),
+    ("kv", "Languages.Database", "SQLite, SQL"),
+    ("kv", "Tools", "Git, GitHub, Unix/Linux, Postman"),
+    ("blank",),
+    ("kv", "Exploring.Systems", "Systems Design, Low-Level"),
+    ("kv", "Exploring.Core", "Networking, Memory Management"),
+    ("blank",),
+    ("header", "Contact"),
+    ("kv", "Email", "mfiakpornu@colgate.edu"),
+    ("kv", "LinkedIn", "matthew-fiakpornu"),
+    ("kv", "Location", "Hamilton, NY"),
+    ("blank",),
+    ("header", "GitHub Stats"),
+    ("kv", "Repos", "{repos} (Contributed: {contributed})"),
+    ("kv", "Stars", "{stars}"),
+    ("kv", "Commits", "{commits}"),
+    ("kv", "Followers", "{followers}"),
+]
+# ===========================================
 
-<a href="https://www.linkedin.com/in/matthew-fiakpornu/">
-<img src="https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white"/>
-</a>
-<a href="mailto:mfiakpornu@colgate.edu">
-<img src="https://img.shields.io/badge/Email-D14836?style=for-the-badge&logo=gmail&logoColor=white"/>
-</a>
+LINE_CHARS = 58          # width of each info row in characters
+FONT_SIZE = 16
+LINE_H = 20
+CHAR_W = FONT_SIZE * 0.6  # monospace character width
+ASCII_X = 15
 
-</div>
+THEMES = {
+    "dark": dict(bg="#161b22", text="#c9d1d9", key="#ffa657", value="#a5d6ff", dots="#616e7f"),
+    "light": dict(bg="#f6f8fa", text="#24292f", key="#953800", value="#0a3069", dots="#c2cfde"),
+}
 
----
 
-## 👨‍💻 About Me
+# ---------- GitHub API ----------
+def gql(query, variables, token):
+    req = urllib.request.Request(
+        "https://api.github.com/graphql",
+        data=json.dumps({"query": query, "variables": variables}).encode(),
+        headers={"Authorization": f"bearer {token}", "Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(req) as r:
+        data = json.load(r)
+    if "errors" in data:
+        sys.exit(f"GitHub API error: {data['errors']}")
+    return data["data"]
 
-- *CS student at **Colgate University** with a **Physics minor***
-- *Interested in **backend engineering**, **systems programming**, and building software that is reliable, efficient, and well-designed*
-- *Currently focused on strengthening fundamentals through hands-on projects*
-- *Motivated by the craft of writing software that is simple, efficient, and performant*
 
----
+def fetch_stats(token):
+    stars, repos, cursor = 0, 0, None
+    while True:
+        d = gql("""
+        query($login: String!, $cursor: String) {
+          user(login: $login) {
+            followers { totalCount }
+            repositoriesContributedTo(contributionTypes: [COMMIT, PULL_REQUEST, REPOSITORY]) { totalCount }
+            contributionsCollection { contributionYears }
+            repositories(ownerAffiliations: OWNER, first: 100, after: $cursor) {
+              totalCount
+              pageInfo { hasNextPage endCursor }
+              nodes { stargazerCount }
+            }
+          }
+        }""", {"login": USERNAME, "cursor": cursor}, token)["user"]
+        repos = d["repositories"]["totalCount"]
+        stars += sum(n["stargazerCount"] for n in d["repositories"]["nodes"])
+        if not d["repositories"]["pageInfo"]["hasNextPage"]:
+            break
+        cursor = d["repositories"]["pageInfo"]["endCursor"]
 
-## 🛠 Tech Stack
+    commits = 0
+    for year in d["contributionsCollection"]["contributionYears"]:
+        c = gql("""
+        query($login: String!, $from: DateTime!, $to: DateTime!) {
+          user(login: $login) {
+            contributionsCollection(from: $from, to: $to) { totalCommitContributions }
+          }
+        }""", {"login": USERNAME, "from": f"{year}-01-01T00:00:00Z",
+               "to": f"{year}-12-31T23:59:59Z"}, token)
+        commits += c["user"]["contributionsCollection"]["totalCommitContributions"]
 
-<table>
-<tr>
-<td><strong>Languages</strong></td>
-<td>
-<img src="https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white" />
-<img src="https://img.shields.io/badge/Java-ED8B00?logo=openjdk&logoColor=white" />
-</td>
-</tr>
-<tr>
-<td><strong>Backend & Frameworks</strong></td>
-<td>
-<img src="https://img.shields.io/badge/Flask-000000?logo=flask&logoColor=white" />
-<img src="https://img.shields.io/badge/REST%20APIs-005571?logoColor=white" />
-<img src="https://img.shields.io/badge/HTTP%20%26%20JSON-FF6C37?logoColor=white" />
-</td>
-</tr>
-<tr>
-<td><strong>Database</strong></td>
-<td>
-<img src="https://img.shields.io/badge/SQLite-003B57?logo=sqlite&logoColor=white" />
-<img src="https://img.shields.io/badge/SQL-336791?logo=postgresql&logoColor=white" />
-</td>
-</tr>
-<tr>
-<td><strong>Tools</strong></td>
-<td>
-<img src="https://img.shields.io/badge/Git-F05032?logo=git&logoColor=white" />
-<img src="https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white" />
-<img src="https://img.shields.io/badge/Unix%2FLinux-4EAA25?logo=gnubash&logoColor=white" />
-<img src="https://img.shields.io/badge/Postman-FF6C37?logo=postman&logoColor=white" />
-<img src="https://img.shields.io/badge/VS%20Code-007ACC?logo=visualstudiocode&logoColor=white" />
-</td>
-</tr>
-<tr>
-<td><strong>Exploring</strong></td>
-<td>
-<img src="https://img.shields.io/badge/Systems%20Design-6A5ACD?logoColor=white" />
-<img src="https://img.shields.io/badge/Low--Level%20Programming-00599C?logoColor=white" />
-<img src="https://img.shields.io/badge/Networking-0A0FFF?logoColor=white" />
-<img src="https://img.shields.io/badge/Memory%20Management-FF4D4D?logoColor=white" />
-</td>
-</tr>
-</table>
+    return dict(
+        repos=f"{repos:,}",
+        contributed=f"{d['repositoriesContributedTo']['totalCount']:,}",
+        stars=f"{stars:,}",
+        commits=f"{commits:,}",
+        followers=f"{d['followers']['totalCount']:,}",
+    )
 
----
 
-## 📌Projects
+def uptime(born):
+    t = date.today()
+    y, m, d = t.year - born.year, t.month - born.month, t.day - born.day
+    if d < 0:
+        m -= 1
+        d += (t.replace(day=1) - timedelta(days=1)).day
+    if m < 0:
+        y -= 1
+        m += 12
+    s = lambda n, w: f"{n} {w}{'' if n == 1 else 's'}"
+    return f"{s(y, 'year')}, {s(m, 'month')}, {s(d, 'day')}"
 
-### [ColorStack Member Directory API](https://github.com/matthewdev05/colorstack-member-api)
-> Python · Flask · SQLite · REST APIs
 
-A RESTful API built from scratch to manage ColorStack member profiles. Supports full CRUD operations via structured HTTP endpoints with SQLite for persistent data storage.
+# ---------- SVG drawing ----------
+def render_rows(stats):
+    """Returns a list of rows; each row is a list of (text, color_key) pieces."""
+    rows = []
+    for item in INFO:
+        if item[0] == "blank":
+            rows.append([])
+        elif item[0] == "header":
+            title = item[1]
+            prefix = "" if not rows else "- "
+            fill = "—" * max(3, LINE_CHARS - len(prefix + title) - 1)
+            rows.append([(prefix + title + " ", "text"), (fill, "dots")])
+        else:
+            key, value = item[1], item[2].format(**stats)
+            dots = "." * max(2, LINE_CHARS - len(key) - len(value) - 4)
+            rows.append([(". ", "dots"), (key, "key"), (": ", "text"),
+                         (dots + " ", "dots"), (value, "value")])
+    return rows
 
-🔗Live: colorstack-member-api-1.onrender.com
----
 
-### [Build Your Own Git](https://github.com/matthewdev05/codecrafters-git-python)
-> Python · Zlib · SHA-1
+def build_svg(theme, ascii_lines, rows):
+    c = THEMES[theme]
+    ascii_w = max((len(l) for l in ascii_lines), default=0)
+    info_x = ASCII_X + ascii_w * CHAR_W + 25
+    width = int(info_x + LINE_CHARS * CHAR_W + 20)
+    n = max(len(ascii_lines), len(rows))
+    height = 30 + n * LINE_H
 
-A ground-up reimplementation of Git core internals in Python. Covers repository initialization, blob object storage, zlib decompression, and SHA-1 hashing to read and decode binary file contents.
+    out = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
+        f'font-family="ConsolasFallback,Consolas,\'Courier New\',monospace" font-size="{FONT_SIZE}px">',
+        f'<rect width="{width}" height="{height}" fill="{c["bg"]}" rx="15"/>',
+        f'<text x="{ASCII_X}" y="30" fill="{c["text"]}" xml:space="preserve">',
+    ]
+    for i, line in enumerate(ascii_lines):
+        out.append(f'<tspan x="{ASCII_X}" y="{30 + i * LINE_H}">{escape(line)}</tspan>')
+    out.append("</text>")
 
----
+    out.append(f'<text x="{info_x:.0f}" y="30" fill="{c["text"]}" xml:space="preserve">')
+    for i, row in enumerate(rows):
+        if not row:
+            continue
+        spans = "".join(f'<tspan fill="{c[col]}">{escape(t)}</tspan>' for t, col in row)
+        out.append(f'<tspan x="{info_x:.0f}" y="{30 + i * LINE_H}">{spans}</tspan>')
+    out.append("</text></svg>")
+    return "\n".join(out)
 
-<div align="center">
-<sub>Open to connecting with engineers, builders, and curious people.</sub>
-</div>
+
+if __name__ == "__main__":
+    if "--offline" in sys.argv:
+        stats = dict(repos="12", contributed="20", stars="34", commits="567", followers="89")
+    else:
+        token = os.environ.get("GH_TOKEN")
+        if not token:
+            sys.exit("Set GH_TOKEN (or run with --offline to preview).")
+        stats = fetch_stats(token)
+    stats["uptime"] = uptime(BIRTHDAY) if BIRTHDAY else ""
+
+    try:
+        with open("ascii.txt", encoding="utf-8") as f:
+            ascii_lines = f.read().splitlines()
+    except FileNotFoundError:
+        ascii_lines = ["(run make_ascii.py first)"]
+
+    rows = render_rows(stats)
+    for theme in THEMES:
+        with open(f"{theme}_mode.svg", "w", encoding="utf-8") as f:
+            f.write(build_svg(theme, ascii_lines, rows))
+    print(f"Updated dark_mode.svg and light_mode.svg at {datetime.now():%Y-%m-%d %H:%M}")
