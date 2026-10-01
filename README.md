@@ -12,7 +12,12 @@
 <a href="mailto:mfiakpornu@colgate.edu">
 <img src="https://img.shields.io/badge/Email-D14836?style=for-the-badge&logo=gmail&logoColor=white"/>
 </a>
+<br/><br/>
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="dark_mode.svg">
+  <img alt="Matthew's terminal-style profile card" src="light_mode.svg" width="100%">
+</picture>
 </div>
 
 ---
